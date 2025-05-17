@@ -50,7 +50,12 @@ with st.expander("Edit IRP Rules Per Country", expanded=True):
         with col3:
             rule = st.selectbox(f"{country} Rule", ["min", "average", "median"], key=f"rule_{country}")
         basket = st.multiselect(f"{country} Reference Basket", [c for c in DEFAULT_COUNTRIES if c != country], default=[c for c in DEFAULT_COUNTRIES if c != country], key=f"basket_{country}")
-        allow_increase = st.checkbox("Allow Price Increases", value=False, key=f"allow_up_{country}")
+        allow_increase = st.selectbox(
+    "Allow Price Increases at IRP Event?",
+    options=["No", "Yes"],
+    index=0,
+    key=f"allow_up_{country}"
+) == "Yes"
         irp_policies[country] = {
             "frequency": freq_months,
             "enforcement_delay": delay,
