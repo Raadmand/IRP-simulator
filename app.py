@@ -5,8 +5,12 @@ import matplotlib.pyplot as plt
 from simulator import run_irp_simulation_with_interventions
 
 st.set_page_config(page_title="IRP Simulator", layout="wide")
-st.image('https://via.placeholder.com/150x40.png?text=HERCULES+IRP', width=180)
-st.title("HERCULES IRP Simulator")
+st.markdown("""
+<div style='display: flex; align-items: center;'>
+  <img src='https://via.placeholder.com/160x40.png?text=HERCULES+IRP' style='margin-right: 10px;'>
+  <h1 style='margin: 0; font-size: 1.8em;'>HERCULES IRP Simulator</h1>
+</div>
+""", unsafe_allow_html=True)
 st.caption("A streamlined tool to model international reference pricing impacts across markets.")
 st.markdown("---")
 st.caption("A streamlined tool to model international reference pricing impacts across markets.")
