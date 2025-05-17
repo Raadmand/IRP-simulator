@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from simulator import run_irp_simulation_with_interventions
 
 st.set_page_config(page_title="IRP Simulator", layout="wide")
+
+# Logo and title
 st.markdown("""
 <div style='display: flex; align-items: center;'>
   <img src='https://via.placeholder.com/160x40.png?text=HERCULES+IRP' style='margin-right: 10px;'>
   <h1 style='margin: 0; font-size: 1.8em;'>HERCULES IRP Simulator</h1>
 </div>
 """, unsafe_allow_html=True)
-st.caption("A streamlined tool to model international reference pricing impacts across markets.")
-st.markdown("---")
 st.caption("A streamlined tool to model international reference pricing impacts across markets.")
 st.markdown("---")
 
@@ -31,14 +31,13 @@ START_YEAR = 2025
 START_MONTH = 1
 TOTAL_MONTHS = YEARS * 12
 
-# Session state to store baseline results
 if "baseline_df" not in st.session_state:
     st.session_state["baseline_df"] = None
 
 st.markdown("### 📘 Step 1: Configure and Run Baseline")
 st.info("This baseline scenario assumes no price interventions. Use it as your benchmark.")
 
-# IRP Policies
+# IRP Rules
 irp_policies = {}
 with st.expander("Edit IRP Rules Per Country", expanded=True):
     for country in DEFAULT_COUNTRIES:
@@ -85,13 +84,13 @@ if st.button("🚀 Run Baseline Simulation"):
     )
     st.success("Baseline simulation completed.")
 
-# If baseline has been run, allow scenario simulation
+# Scenario step only if baseline is ready
 if st.session_state["baseline_df"] is not None:
     st.markdown("### 🔧 Step 2: Define Price Event Scenarios")
-st.info("Now you can simulate how price changes in one country affect others via IRP.")
+    st.info("Now you can simulate how price changes in one country affect others via IRP.")
 
-    interventions = []
     with st.expander("Define Price Events (Interventions)", expanded=True):
+        interventions = []
         num_events = st.number_input("Number of Price Events", min_value=1, max_value=10, value=1)
         for i in range(num_events):
             st.markdown(f"**Event {i + 1}**")
@@ -142,7 +141,7 @@ st.info("Now you can simulate how price changes in one country affect others via
         merged["Baseline_Revenue"] = baseline_df["Revenue"]
         merged["Revenue_Diff"] = merged["Baseline_Revenue"] - merged["Scenario_Revenue"]
 
-        st.subheader("📊 Total Revenue Comparison by Country")
+        st.markdown("### 📊 Revenue Comparison")
         totals = merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
         fig, ax = plt.subplots()
         ax.bar(totals["Country"], totals["Baseline_Revenue"], label="Baseline")
