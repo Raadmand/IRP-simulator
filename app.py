@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from simulator import run_irp_simulation_with_interventions
 
 st.set_page_config(page_title="IRP Simulator", layout="wide")
-st.title("💊 International Reference Pricing Simulator")
+st.title("💊 IRP Simulator")
+st.caption("A streamlined tool to model international reference pricing impacts across markets.")
+st.markdown("---")
 
 # Constants
 DRUG_NAME = "Aspirin"
@@ -26,7 +28,8 @@ TOTAL_MONTHS = YEARS * 12
 if "baseline_df" not in st.session_state:
     st.session_state["baseline_df"] = None
 
-st.header("📘 Step 1: Configure and Run Baseline (No Price Cuts)")
+st.markdown("### 📘 Step 1: Configure and Run Baseline")
+st.info("This baseline scenario assumes no price interventions. Use it as your benchmark.")
 
 # IRP Policies
 irp_policies = {}
@@ -77,7 +80,8 @@ if st.button("🚀 Run Baseline Simulation"):
 
 # If baseline has been run, allow scenario simulation
 if st.session_state["baseline_df"] is not None:
-    st.header("🔧 Step 2: Simulate Scenario (Apply Price Events)")
+    st.markdown("### 🔧 Step 2: Define Price Event Scenarios")
+st.info("Now you can simulate how price changes in one country affect others via IRP.")
 
     interventions = []
     with st.expander("Define Price Events (Interventions)", expanded=True):
@@ -141,7 +145,7 @@ if st.session_state["baseline_df"] is not None:
         ax.legend()
         st.pyplot(fig)
 
-        st.subheader("📄 Detailed Results")
+        st.markdown("### 📄 Detailed Results Table")
         st.dataframe(merged)
 
         csv = merged.to_csv(index=False).encode("utf-8")
