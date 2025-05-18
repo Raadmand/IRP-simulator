@@ -113,10 +113,18 @@ if "baseline_df" in st.session_state:
         )
 
         baseline_df = st.session_state["baseline_df"]
-        merged = scenario_df.rename(columns={"Price": "Scenario_Price", "Revenue": "Scenario_Revenue"})
-        merged["Baseline_Price"] = baseline_df["Price"]
-        merged["Baseline_Revenue"] = baseline_df["Revenue"]
-        merged["Revenue_Diff"] = merged["Baseline_Revenue"] - merged["Scenario_Revenue"]
+
+        baseline_df = st.session_state["baseline_df"]
+        scenario_df = scenario_df.copy()
+
+        merged = pd.merge(
+            scenario_df,
+            baseline_df,
+            on=["Drug", "Country", "Year", "Month"],
+            suffixes=("_Scenario", "_Baseline")
+        )
+
+        merged["Revenue_Diff"] = merged["Revenue_Baseline"] - merged["Revenue_Scenario"]
         st.session_state["results_df"] = merged
         st.success("Scenario simulation complete.")
 
@@ -151,3 +159,8 @@ if "results_df" in st.session_state:
     country_select = st.selectbox("Select country to view trend", options=all_countries, index=all_countries.index(default_country))
     df_country = df_time[df_time["Country"] == country_select].sort_values("Date")
     st.line_chart(df_country.set_index("Date")[["Baseline_Revenue", "Scenario_Revenue"]])
+
+    st.markdown("### 🧾 Detailed Results Table")
+    st.dataframe(merged[["Country", "Year", "Month", "Price_Baseline", "Rationale_Baseline", "Revenue_Baseline", "Price_Scenario", "Rationale_Scenario", "Revenue_Scenario", "Revenue_Diff"]])
+
+    st.download_button("Download Results CSV", data=merged.to_csv(index=False), file_name="irp_results.csv")
