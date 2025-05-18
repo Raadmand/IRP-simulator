@@ -11,41 +11,48 @@ st.title("HERCULES IRP Simulator")
 all_countries = list(dummy_prices.keys())
 drug_name = st.text_input("Drug Name", "Aspirin")
 
-# Step 1.1: View & Edit IRP Rules
-with st.expander("📘 View & Edit IRP Rules", expanded=False):
-    st.caption("Edit the IRP rule configuration for each country.")
-    irp_inputs = {}
+# Step 1.1: View & Edit IRP Rules (All countries shown horizontally under one expander)
+irp_inputs = {}
+with st.expander("📘 View & Edit IRP Rules (All Countries)", expanded=False):
+    st.caption("Adjust basket, rule, frequency, delay, and price increase settings below.")
     for country in all_countries:
-        with st.expander(f"{country} IRP Settings", expanded=False):
-            rule = st.selectbox(f"{country} Rule", ["min", "average", "median"], index=["min", "average", "median"].index(irp_policies[country]["rule"]), key=f"rule_{country}")
-            freq = st.number_input("Review Frequency (months)", min_value=1, max_value=60, value=irp_policies[country]["frequency"], key=f"freq_{country}")
-            delay = st.number_input("Enforcement Delay (months)", min_value=0, max_value=24, value=irp_policies[country]["enforcement_delay"], key=f"delay_{country}")
-            allow = st.selectbox("Allow Price Increases?", ["No", "Yes"], index=1 if irp_policies[country]["allow_increase"] else 0, key=f"allow_{country}")
-            basket = st.multiselect("Reference Basket", [c for c in all_countries if c != country], default=irp_policies[country]["basket"], key=f"basket_{country}")
-            irp_inputs[country] = {
-                "rule": rule,
-                "frequency": freq,
-                "enforcement_delay": delay,
-                "allow_increase": allow == "Yes",
-                "basket": basket,
-                "review_month": irp_policies[country].get("review_month", 6),
-                "performs_irp": irp_policies[country].get("performs_irp", True)
-            }
+        st.markdown(f"**{country}**")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            rule = st.selectbox("Rule", ["min", "average", "median"], index=["min", "average", "median"].index(irp_policies[country]["rule"]), key=f"rule_{country}")
+        with col2:
+            freq = st.number_input("Frequency (months)", min_value=1, max_value=60, value=irp_policies[country]["frequency"], key=f"freq_{country}")
+        with col3:
+            delay = st.number_input("Delay (months)", min_value=0, max_value=24, value=irp_policies[country]["enforcement_delay"], key=f"delay_{country}")
+        col4, col5 = st.columns([1, 3])
+        with col4:
+            allow = st.selectbox("Allow ↑?", ["No", "Yes"], index=1 if irp_policies[country]["allow_increase"] else 0, key=f"allow_{country}")
+        with col5:
+            basket = st.multiselect("Basket", [c for c in all_countries if c != country], default=irp_policies[country]["basket"], key=f"basket_{country}")
+        irp_inputs[country] = {
+            "rule": rule,
+            "frequency": freq,
+            "enforcement_delay": delay,
+            "allow_increase": allow == "Yes",
+            "basket": basket,
+            "review_month": irp_policies[country].get("review_month", 6),
+            "performs_irp": irp_policies[country].get("performs_irp", True)
+        }
 
-# Step 1.2: Input & Review Prices
+# Step 1.2: Prices
+initial_prices = {}
 with st.expander("💶 Input & Review Prices", expanded=False):
-    initial_prices = {}
     for country in all_countries:
         initial_prices[country] = st.number_input(f"{country} price (€)", value=dummy_prices[country], key=f"price_{country}")
-    initial_prices_wrapped = {drug_name: initial_prices}
+initial_prices_wrapped = {drug_name: initial_prices}
 
-# Step 1.3: Input & Review Volumes
+# Step 1.3: Volumes
+volumes = {}
 with st.expander("📦 Input & Review Volumes", expanded=False):
-    volumes = {}
     for country in all_countries:
         vol = st.number_input(f"{country} monthly volume", value=dummy_volumes[country][0], key=f"vol_{country}")
         volumes[country] = {m: vol for m in range(121)}
-    volumes_wrapped = {drug_name: volumes}
+volumes_wrapped = {drug_name: volumes}
 
 # Run Baseline
 if st.button("▶️ Run Baseline Simulation"):
@@ -62,7 +69,7 @@ if st.button("▶️ Run Baseline Simulation"):
     st.session_state["irp_inputs"] = irp_inputs
     st.success("Baseline simulation complete.")
 
-# Step 2: Scenario Builder
+# Step 2: Scenario
 if "baseline_df" in st.session_state:
     st.markdown("---")
     st.markdown("## 🔧 Step 2: Define Scenario")
