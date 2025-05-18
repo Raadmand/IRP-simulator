@@ -28,7 +28,9 @@ with st.expander("📘 View & Edit IRP Rules (All Countries)", expanded=False):
         with col4:
             allow = st.selectbox("Allow ↑?", ["No", "Yes"], index=1 if irp_policies[country]["allow_increase"] else 0, key=f"allow_{country}")
         with col5:
-            basket = st.multiselect("Basket", [c for c in all_countries if c != country], default=irp_policies[country]["basket"], key=f"basket_{country}")
+            options = [c for c in all_countries if c != country]
+        default_basket = [b for b in irp_policies[country]["basket"] if b in options]
+        basket = st.multiselect("Basket", options, default=default_basket, key=f"basket_{country}")
         irp_inputs[country] = {
             "rule": rule,
             "frequency": freq,
