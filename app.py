@@ -17,7 +17,10 @@ selected_countries = st.multiselect(
     default=list(irp_policies.keys())
 )
 
-st.markdown("### Edit IRP Rules Per Country")
+with st.expander("📘 View & Edit IRP Rules (All Countries)", expanded=False):
+    st.caption("Review IRP settings for all countries before simulation.")
+    irp_df = pd.DataFrame.from_dict(irp_policies, orient="index").reset_index(names=["Country"])
+    st.dataframe(irp_df)
 irp_inputs = {}
 for country in selected_countries:
     with st.expander(f"{country} IRP Settings", expanded=False):
@@ -26,8 +29,8 @@ for country in selected_countries:
         delay = st.number_input("Enforcement Delay (months)", min_value=0, max_value=24, value=irp_policies[country]["enforcement_delay"], key=f"delay_{country}")
         allow = st.selectbox("Allow Price Increases?", ["No", "Yes"], index=1 if irp_policies[country]["allow_increase"] else 0, key=f"allow_{country}")
         basket = st.multiselect("Reference Basket", [c for c in selected_countries if c != country], default=irp_policies[country]["basket"], key=f"basket_{country}")
-        irp_inputs[country] = {
-            "rule": rule,
+        # Use default rule input instead of per-country dropdowns
+    irp_inputs[country] = irp_policies[country]
             "frequency": frequency,
             "enforcement_delay": delay,
             "allow_increase": True if allow == "Yes" else False,
