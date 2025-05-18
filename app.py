@@ -131,11 +131,12 @@ if "baseline_df" in st.session_state:
 # Step 3: Results
 if "results_df" in st.session_state:
     st.markdown("---")
+
     st.markdown("## 📊 Step 3: Results")
 
     merged = st.session_state["results_df"]
-    summary = merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
-    summary["Impacted"] = summary["Scenario_Revenue"] < summary["Baseline_Revenue"]
+    summary = merged.groupby("Country")[["Revenue_Baseline", "Revenue_Scenario"]].sum().reset_index()
+    summary["Impacted"] = summary["Revenue_Scenario"] < summary["Revenue_Baseline"]
 
     view_option = st.selectbox("Filter countries for bar chart:", ["Only impacted countries", "All countries"])
     summary_filtered = summary if view_option == "All countries" else summary[summary["Impacted"]]
@@ -144,21 +145,21 @@ if "results_df" in st.session_state:
     summary_melted = pd.melt(
         summary_filtered,
         id_vars=["Country"],
-        value_vars=["Baseline_Revenue", "Scenario_Revenue"],
+        value_vars=["Revenue_Baseline", "Revenue_Scenario"],
         var_name="Scenario",
         value_name="Total Revenue (€)"
     )
     st.bar_chart(summary_melted.pivot(index="Country", columns="Scenario", values="Total Revenue (€)"))
 
     st.markdown("### 📈 Revenue Over Time")
-    df_time = merged.groupby(["Year", "Month", "Country"])[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
+    df_time = merged.groupby(["Year", "Month", "Country"])[["Revenue_Baseline", "Revenue_Scenario"]].sum().reset_index()
     df_time["Date"] = pd.to_datetime(df_time["Year"].astype(str) + "-" + df_time["Month"].astype(str) + "-01")
 
     impacted_countries = summary[summary["Impacted"]]["Country"].tolist()
-    default_country = impacted_countries[0] if impacted_countries else all_countries[0]
-    country_select = st.selectbox("Select country to view trend", options=all_countries, index=all_countries.index(default_country))
+    default_country = impacted_countries[0] if impacted_countries else merged["Country"].unique()[0]
+    country_select = st.selectbox("Select country to view trend", options=merged["Country"].unique().tolist(), index=list(merged["Country"].unique()).index(default_country))
     df_country = df_time[df_time["Country"] == country_select].sort_values("Date")
-    st.line_chart(df_country.set_index("Date")[["Baseline_Revenue", "Scenario_Revenue"]])
+    st.line_chart(df_country.set_index("Date")[["Revenue_Baseline", "Revenue_Scenario"]])
 
     st.markdown("### 🧾 Detailed Results Table")
     st.dataframe(merged[["Country", "Year", "Month", "Price_Baseline", "Rationale_Baseline", "Revenue_Baseline", "Price_Scenario", "Rationale_Scenario", "Revenue_Scenario", "Revenue_Diff"]])
