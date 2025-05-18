@@ -1,144 +1,93 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+from irp_policies import irp_policies
+from dummy_data import dummy_prices, dummy_volumes
 from simulator import run_irp_simulation_with_interventions
 
-st.set_page_config(page_title="IRP Simulator", layout="wide")
+st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
+st.title("HERCULES IRP Simulator")
 
-# Logo and title
-st.markdown("""
-<div style='display: flex; align-items: center;'>
-  <img src='https://via.placeholder.com/160x40.png?text=HERCULES+IRP' style='margin-right: 10px;'>
-  <h1 style='margin: 0; font-size: 1.8em;'>HERCULES IRP Simulator</h1>
-</div>
-""", unsafe_allow_html=True)
-st.caption("A streamlined tool to model international reference pricing impacts across markets.")
-st.markdown("---")
+st.markdown("## 📘 Step 1: Select Countries with IRP Enabled")
+irp_active = {k: v for k, v in irp_policies.items() if v.get("performs_irp")}
+selected_countries = st.multiselect(
+    "Select countries to simulate",
+    options=list(irp_policies.keys()),
+    default=list(irp_active.keys())
+)
 
-# Constants
-DRUG_NAME = "Aspirin"
-DEFAULT_COUNTRIES = {
-    "Germany": 12.5,
-    "France": 11.8,
-    "Spain": 10.0,
-    "Italy": 13.2,
-    "Norway": 14.0
-}
-DEFAULT_VOLUME = 100000
-YEARS = 10
-START_YEAR = 2025
-START_MONTH = 1
-TOTAL_MONTHS = YEARS * 12
+st.markdown("## 💊 Step 2: Define Drug and Pricing Data")
 
-if "baseline_df" not in st.session_state:
-    st.session_state["baseline_df"] = None
+drug_name = st.text_input("Drug name", "Aspirin")
+initial_prices = {}
+volumes = {}
 
-st.markdown("### 📘 Step 1: Configure and Run Baseline")
-st.info("This baseline scenario assumes no price interventions. Use it as your benchmark.")
+for country in selected_countries:
+    col1, col2 = st.columns(2)
+    with col1:
+        price = st.number_input(f"Initial price in {country} (€)", value=dummy_prices.get(country, 10.0), key=f"price_{country}")
+    with col2:
+        volume = st.number_input(f"Monthly volume in {country}", value=dummy_volumes.get(country, {}).get(0, 100000), key=f"vol_{country}")
+    initial_prices[country] = price
+    volumes[country] = {m: volume for m in range(121)}
 
-# IRP Rules
-irp_policies = {}
-with st.expander("Edit IRP Rules Per Country", expanded=True):
-    for country in DEFAULT_COUNTRIES:
-        st.markdown(f"**{country}**")
+initial_prices_wrapped = {drug_name: initial_prices}
+volumes_wrapped = {drug_name: volumes}
+policies_wrapped = {country: irp_policies[country] for country in selected_countries}
+
+if st.button("▶️ Run Baseline Simulation"):
+    baseline_df = run_irp_simulation_with_interventions(
+        initial_prices=initial_prices_wrapped,
+        volumes=volumes_wrapped,
+        irp_policies=policies_wrapped,
+        interventions=[],
+        years=10,
+        start_year=2025,
+        start_month=1
+    )
+    st.session_state["baseline_df"] = baseline_df
+    st.success("Baseline simulation complete.")
+
+if "baseline_df" in st.session_state:
+    st.markdown("---")
+    st.markdown("## 🔧 Step 3: Add Intervention Scenario")
+
+    interventions = []
+    num_events = st.number_input("Number of intervention events", min_value=1, max_value=10, value=1)
+    for i in range(num_events):
+        st.markdown(f"### Event {i + 1}")
         col1, col2, col3 = st.columns(3)
         with col1:
-            freq_months = st.number_input(f"{country} Frequency (months)", value=12, min_value=1, max_value=60, key=f"freq_{country}")
+            country = st.selectbox(f"Country", selected_countries, key=f"intv_country_{i}")
         with col2:
-            delay = st.number_input(f"{country} Enforcement Delay (months)", value=0, min_value=0, max_value=24, key=f"delay_{country}")
+            year = st.selectbox("Year", list(range(2025, 2036)), key=f"intv_year_{i}")
         with col3:
-            rule = st.selectbox(f"{country} Rule", ["min", "average", "median"], key=f"rule_{country}")
-        basket = st.multiselect(f"{country} Reference Basket", [c for c in DEFAULT_COUNTRIES if c != country], default=[c for c in DEFAULT_COUNTRIES if c != country], key=f"basket_{country}")
-        allow_increase = st.selectbox(
-    "Allow Price Increases at IRP Event?",
-    options=["No", "Yes"],
-    index=0,
-    key=f"allow_up_{country}"
-) == "Yes"
-        irp_policies[country] = {
-            "frequency": freq_months,
-            "enforcement_delay": delay,
-            "rule": rule,
-            "basket": basket
-        }
+            month = st.selectbox("Month", list(range(1, 13)), key=f"intv_month_{i}")
 
-# Prices
-initial_prices = {DRUG_NAME: {}}
-with st.expander("Set Initial Prices", expanded=False):
-    for country, base_price in DEFAULT_COUNTRIES.items():
-        price = st.number_input(f"{country} Initial Price (€)", value=base_price, min_value=0.01, step=0.1, key=f"price_{country}")
-        initial_prices[DRUG_NAME][country] = price
+        mode = st.radio("Change Mode", ["Percent", "Absolute"], horizontal=True, key=f"intv_mode_{i}")
+        if mode == "Percent":
+            value = st.slider("Percent Reduction (%)", 1, 90, 30, key=f"intv_val_{i}")
+        else:
+            value = st.number_input("New Price (€)", min_value=0.01, value=5.0, key=f"intv_val_{i}")
 
-# Volumes
-volumes = {DRUG_NAME: {}}
-with st.expander("Set Constant Monthly Volumes", expanded=False):
-    for country in DEFAULT_COUNTRIES:
-        vol = st.number_input(f"{country} Monthly Volume (units)", value=DEFAULT_VOLUME, step=1000, key=f"vol_{country}")
-        volumes[DRUG_NAME][country] = {m: vol for m in range(TOTAL_MONTHS + 1)}
-
-# Run baseline
-if st.button("🚀 Run Baseline Simulation"):
-    st.session_state["baseline_df"] = run_irp_simulation_with_interventions(
-        initial_prices=initial_prices,
-        volumes=volumes,
-        irp_policies=irp_policies,
-        interventions=[],
-        years=YEARS,
-        start_year=START_YEAR,
-        start_month=START_MONTH
-    )
-    st.success("Baseline simulation completed.")
-
-# Scenario step only if baseline is ready
-if st.session_state["baseline_df"] is not None:
-    st.markdown("### 🔧 Step 2: Define Price Event Scenarios")
-    st.info("Now you can simulate how price changes in one country affect others via IRP.")
-
-    with st.expander("Define Price Events (Interventions)", expanded=True):
-        interventions = []
-        num_events = st.number_input("Number of Price Events", min_value=1, max_value=10, value=1)
-        for i in range(num_events):
-            st.markdown(f"**Event {i + 1}**")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                country = st.selectbox(f"Country", list(DEFAULT_COUNTRIES.keys()), key=f"intv_country_{i}")
-            with col2:
-                month = st.selectbox("Start Month", list(range(1, 13)), key=f"intv_month_{i}")
-            with col3:
-                year = st.selectbox("Start Year", list(range(START_YEAR, START_YEAR + YEARS)), key=f"intv_year_{i}")
-
-            mode = st.radio("Change Mode", ["Percent", "Absolute"], horizontal=True, key=f"intv_mode_{i}")
-            if mode == "Percent":
-                value = st.slider("Percent Reduction (%)", min_value=1, max_value=90, value=30, key=f"intv_value_{i}")
-                interventions.append({
-                    "drug": DRUG_NAME,
-                    "country": country,
-                    "month": month,
-                    "year": year,
-                    "mode": "percent",
-                    "value": value
-                })
-            else:
-                value = st.number_input("Set New Absolute Price (€)", min_value=0.01, step=0.1, key=f"intv_value_{i}")
-                interventions.append({
-                    "drug": DRUG_NAME,
-                    "country": country,
-                    "month": month,
-                    "year": year,
-                    "mode": "absolute",
-                    "value": value
-                })
+        interventions.append({
+            "drug": drug_name,
+            "country": country,
+            "year": year,
+            "month": month,
+            "mode": "percent" if mode == "Percent" else "absolute",
+            "value": value
+        })
 
     if st.button("▶️ Run Scenario Simulation"):
         scenario_df = run_irp_simulation_with_interventions(
-            initial_prices=initial_prices,
-            volumes=volumes,
-            irp_policies=irp_policies,
+            initial_prices=initial_prices_wrapped,
+            volumes=volumes_wrapped,
+            irp_policies=policies_wrapped,
             interventions=interventions,
-            years=YEARS,
-            start_year=START_YEAR,
-            start_month=START_MONTH
+            years=10,
+            start_year=2025,
+            start_month=1
         )
 
         baseline_df = st.session_state["baseline_df"]
@@ -147,18 +96,10 @@ if st.session_state["baseline_df"] is not None:
         merged["Baseline_Revenue"] = baseline_df["Revenue"]
         merged["Revenue_Diff"] = merged["Baseline_Revenue"] - merged["Scenario_Revenue"]
 
-        st.markdown("### 📊 Revenue Comparison")
-        totals = merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
-        fig, ax = plt.subplots()
-        ax.bar(totals["Country"], totals["Baseline_Revenue"], label="Baseline")
-        ax.bar(totals["Country"], totals["Scenario_Revenue"], label="Scenario", alpha=0.7)
-        ax.set_ylabel("Total Revenue (€)")
-        ax.set_title("Total Revenue per Country (Baseline vs Scenario)")
-        ax.legend()
-        st.pyplot(fig)
+        st.markdown("## 📊 Results")
+        country_to_plot = st.selectbox("Select country for chart", selected_countries)
+        df_c = merged[merged["Country"] == country_to_plot]
 
-        st.markdown("### 📄 Detailed Results Table")
+        st.line_chart(df_c[["Baseline_Revenue", "Scenario_Revenue"]].reset_index(drop=True))
         st.dataframe(merged)
-
-        csv = merged.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, file_name="irp_comparison_results.csv", mime="text/csv")
+        st.download_button("Download results CSV", data=merged.to_csv(index=False), file_name="irp_results.csv")
