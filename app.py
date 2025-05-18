@@ -8,12 +8,11 @@ from simulator import run_irp_simulation_with_interventions
 st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
 st.title("HERCULES IRP Simulator")
 
-st.markdown("## 📘 Step 1: Select Countries with IRP Enabled")
-irp_active = {k: v for k, v in irp_policies.items() if v.get("performs_irp")}
+st.markdown("## 📘 Step 1: Select Countries for Simulation")
 selected_countries = st.multiselect(
     "Select countries to simulate",
     options=list(irp_policies.keys()),
-    default=list(irp_active.keys())
+    default=list(irp_policies.keys())
 )
 
 st.markdown("## 💊 Step 2: Define Drug and Pricing Data")
@@ -33,7 +32,23 @@ for country in selected_countries:
 
 initial_prices_wrapped = {drug_name: initial_prices}
 volumes_wrapped = {drug_name: volumes}
-policies_wrapped = {country: irp_policies[country] for country in selected_countries}
+
+# Include policies for all countries, but only use IRP logic where it applies
+policies_wrapped = {}
+for country in selected_countries:
+    policy = irp_policies[country]
+    if policy["performs_irp"]:
+        policies_wrapped[country] = policy
+    else:
+        # No IRP performed, skip application by setting long frequency
+        policies_wrapped[country] = {
+            **policy,
+            "frequency": 9999,
+            "rule": "average",
+            "basket": [],
+            "enforcement_delay": 0,
+            "allow_increase": False
+        }
 
 if st.button("▶️ Run Baseline Simulation"):
     baseline_df = run_irp_simulation_with_interventions(
