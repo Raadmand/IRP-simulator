@@ -8,16 +8,36 @@ from simulator import run_irp_simulation_with_interventions
 st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
 st.title("HERCULES IRP Simulator")
 
-st.markdown("## 📘 Step 1: Select Countries for Simulation")
+# Step 1: Editable Baseline Setup
+st.markdown("## 📘 Step 1: Set Up Baseline")
+
 selected_countries = st.multiselect(
-    "Select countries to simulate",
+    "Select countries to include in simulation",
     options=list(irp_policies.keys()),
     default=list(irp_policies.keys())
 )
 
-st.markdown("## 💊 Step 2: Define Drug and Pricing Data")
+st.markdown("### Edit IRP Rules Per Country")
+irp_inputs = {}
+for country in selected_countries:
+    with st.expander(f"{country} IRP Settings", expanded=False):
+        rule = st.selectbox("IRP Rule", ["min", "average", "median"], index=["min", "average", "median"].index(irp_policies[country]["rule"]), key=f"rule_{country}")
+        frequency = st.number_input("Review Frequency (months)", min_value=1, max_value=60, value=irp_policies[country]["frequency"], key=f"freq_{country}")
+        delay = st.number_input("Enforcement Delay (months)", min_value=0, max_value=24, value=irp_policies[country]["enforcement_delay"], key=f"delay_{country}")
+        allow = st.selectbox("Allow Price Increases?", ["No", "Yes"], index=1 if irp_policies[country]["allow_increase"] else 0, key=f"allow_{country}")
+        basket = st.multiselect("Reference Basket", [c for c in selected_countries if c != country], default=irp_policies[country]["basket"], key=f"basket_{country}")
+        irp_inputs[country] = {
+            "rule": rule,
+            "frequency": frequency,
+            "enforcement_delay": delay,
+            "allow_increase": True if allow == "Yes" else False,
+            "basket": basket,
+            "review_month": irp_policies[country].get("review_month", 6),
+            "performs_irp": irp_policies[country].get("performs_irp", True)
+        }
 
-drug_name = st.text_input("Drug name", "Aspirin")
+st.markdown("### Set Initial Prices and Volumes")
+drug_name = st.text_input("Drug Name", "Aspirin")
 initial_prices = {}
 volumes = {}
 
@@ -33,39 +53,23 @@ for country in selected_countries:
 initial_prices_wrapped = {drug_name: initial_prices}
 volumes_wrapped = {drug_name: volumes}
 
-# Include policies for all countries, but only use IRP logic where it applies
-policies_wrapped = {}
-for country in selected_countries:
-    policy = irp_policies[country]
-    if policy["performs_irp"]:
-        policies_wrapped[country] = policy
-    else:
-        # No IRP performed, skip application by setting long frequency
-        policies_wrapped[country] = {
-            **policy,
-            "frequency": 9999,
-            "rule": "average",
-            "basket": [],
-            "enforcement_delay": 0,
-            "allow_increase": False
-        }
-
 if st.button("▶️ Run Baseline Simulation"):
-    baseline_df = run_irp_simulation_with_interventions(
+    st.session_state["baseline_df"] = run_irp_simulation_with_interventions(
         initial_prices=initial_prices_wrapped,
         volumes=volumes_wrapped,
-        irp_policies=policies_wrapped,
+        irp_policies=irp_inputs,
         interventions=[],
         years=10,
         start_year=2025,
         start_month=1
     )
-    st.session_state["baseline_df"] = baseline_df
+    st.session_state["irp_inputs"] = irp_inputs
     st.success("Baseline simulation complete.")
 
+# Step 2: Scenario Builder
 if "baseline_df" in st.session_state:
     st.markdown("---")
-    st.markdown("## 🔧 Step 3: Add Intervention Scenario")
+    st.markdown("## 🔧 Step 2: Define Scenario Interventions")
 
     interventions = []
     num_events = st.number_input("Number of intervention events", min_value=1, max_value=10, value=1)
@@ -78,13 +82,11 @@ if "baseline_df" in st.session_state:
             year = st.selectbox("Year", list(range(2025, 2036)), key=f"intv_year_{i}")
         with col3:
             month = st.selectbox("Month", list(range(1, 13)), key=f"intv_month_{i}")
-
         mode = st.radio("Change Mode", ["Percent", "Absolute"], horizontal=True, key=f"intv_mode_{i}")
         if mode == "Percent":
             value = st.slider("Percent Reduction (%)", 1, 90, 30, key=f"intv_val_{i}")
         else:
             value = st.number_input("New Price (€)", min_value=0.01, value=5.0, key=f"intv_val_{i}")
-
         interventions.append({
             "drug": drug_name,
             "country": country,
@@ -98,7 +100,7 @@ if "baseline_df" in st.session_state:
         scenario_df = run_irp_simulation_with_interventions(
             initial_prices=initial_prices_wrapped,
             volumes=volumes_wrapped,
-            irp_policies=policies_wrapped,
+            irp_policies=st.session_state["irp_inputs"],
             interventions=interventions,
             years=10,
             start_year=2025,
@@ -110,57 +112,41 @@ if "baseline_df" in st.session_state:
         merged["Baseline_Price"] = baseline_df["Price"]
         merged["Baseline_Revenue"] = baseline_df["Revenue"]
         merged["Revenue_Diff"] = merged["Baseline_Revenue"] - merged["Scenario_Revenue"]
+        st.session_state["results_df"] = merged
+        st.success("Scenario simulation complete.")
 
-        
-        st.markdown("## 📊 Step 3: Results")
+# Step 3: Results View
+if "results_df" in st.session_state:
+    st.markdown("---")
+    st.markdown("## 📊 Step 3: Results View")
 
-        # Compute total revenue by country
-        summary = (
-            merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]]
-            .sum()
-            .reset_index()
-        )
-        summary["Impacted"] = summary["Scenario_Revenue"] < summary["Baseline_Revenue"]
+    merged = st.session_state["results_df"]
+    summary = merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
+    summary["Impacted"] = summary["Scenario_Revenue"] < summary["Baseline_Revenue"]
 
-        show_impacted_only = st.selectbox(
-            "Filter countries in chart:", ["Only impacted countries", "All countries"]
-        )
-        if show_impacted_only == "Only impacted countries":
-            summary_filtered = summary[summary["Impacted"]]
-        else:
-            summary_filtered = summary
+    view_option = st.selectbox("Select data to show in bar chart:", ["Only impacted countries", "All countries"])
+    if view_option == "Only impacted countries":
+        summary_filtered = summary[summary["Impacted"]]
+    else:
+        summary_filtered = summary
 
-        st.markdown("### 📊 Total Revenue by Country")
-        summary_melted = pd.melt(
-            summary_filtered,
-            id_vars=["Country"],
-            value_vars=["Baseline_Revenue", "Scenario_Revenue"],
-            var_name="Scenario",
-            value_name="Total Revenue (€)"
-        )
-        st.bar_chart(
-            data=summary_melted.pivot(index="Country", columns="Scenario", values="Total Revenue (€)")
-        )
+    st.markdown("### 💵 Total Revenue by Country")
+    summary_melted = pd.melt(
+        summary_filtered,
+        id_vars=["Country"],
+        value_vars=["Baseline_Revenue", "Scenario_Revenue"],
+        var_name="Scenario",
+        value_name="Total Revenue (€)"
+    )
+    st.bar_chart(summary_melted.pivot(index="Country", columns="Scenario", values="Total Revenue (€)"))
 
-        st.markdown("### 📈 Revenue Over Time by Country")
-        df_time = merged.groupby(["Year", "Month", "Country"])[
-            ["Baseline_Revenue", "Scenario_Revenue"]
-        ].sum().reset_index()
+    st.markdown("### 📈 Revenue Over Time")
+    df_time = merged.groupby(["Year", "Month", "Country"])[["Baseline_Revenue", "Scenario_Revenue"]].sum().reset_index()
+    df_time["Date"] = pd.to_datetime(df_time["Year"].astype(str) + "-" + df_time["Month"].astype(str) + "-01")
 
-        # Convert to datetime for x-axis
-        df_time["Date"] = pd.to_datetime(df_time["Year"].astype(str) + "-" + df_time["Month"].astype(str) + "-01")
+    impacted_countries = summary[summary["Impacted"]]["Country"].tolist()
+    default_country = impacted_countries[0] if impacted_countries else selected_countries[0]
 
-        # Filter impacted countries
-        impacted_countries = summary[summary["Impacted"]]["Country"].tolist()
-        countries_to_plot = st.multiselect(
-            "Select countries for time-based revenue view",
-            options=merged["Country"].unique().tolist(),
-            default=impacted_countries if impacted_countries else merged["Country"].unique().tolist()
-        )
-
-        for country in countries_to_plot:
-            df_country = df_time[df_time["Country"] == country].sort_values("Date")
-            st.line_chart(
-                df_country.set_index("Date")[["Baseline_Revenue", "Scenario_Revenue"]],
-                height=300
-            )
+    country_select = st.selectbox("Select country to view trend", options=selected_countries, index=selected_countries.index(default_country))
+    df_country = df_time[df_time["Country"] == country_select].sort_values("Date")
+    st.line_chart(df_country.set_index("Date")[["Baseline_Revenue", "Scenario_Revenue"]])
