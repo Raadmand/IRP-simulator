@@ -43,7 +43,7 @@ if st.button("▶️ Run Baseline Simulation"):
     st.session_state["baseline_df"] = run_irp_simulation_with_interventions(
         initial_prices=initial_prices_wrapped,
         volumes=volumes_wrapped,
-        irp_policies=irp_inputs,
+        irp_policies=irp_policies,
         interventions=[],
         years=10,
         start_year=2025,
