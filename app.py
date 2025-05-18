@@ -111,10 +111,56 @@ if "baseline_df" in st.session_state:
         merged["Baseline_Revenue"] = baseline_df["Revenue"]
         merged["Revenue_Diff"] = merged["Baseline_Revenue"] - merged["Scenario_Revenue"]
 
-        st.markdown("## 📊 Results")
-        country_to_plot = st.selectbox("Select country for chart", selected_countries)
-        df_c = merged[merged["Country"] == country_to_plot]
+        
+        st.markdown("## 📊 Step 3: Results")
 
-        st.line_chart(df_c[["Baseline_Revenue", "Scenario_Revenue"]].reset_index(drop=True))
-        st.dataframe(merged)
-        st.download_button("Download results CSV", data=merged.to_csv(index=False), file_name="irp_results.csv")
+        # Compute total revenue by country
+        summary = (
+            merged.groupby("Country")[["Baseline_Revenue", "Scenario_Revenue"]]
+            .sum()
+            .reset_index()
+        )
+        summary["Impacted"] = summary["Scenario_Revenue"] < summary["Baseline_Revenue"]
+
+        show_impacted_only = st.selectbox(
+            "Filter countries in chart:", ["Only impacted countries", "All countries"]
+        )
+        if show_impacted_only == "Only impacted countries":
+            summary_filtered = summary[summary["Impacted"]]
+        else:
+            summary_filtered = summary
+
+        st.markdown("### 📊 Total Revenue by Country")
+        summary_melted = pd.melt(
+            summary_filtered,
+            id_vars=["Country"],
+            value_vars=["Baseline_Revenue", "Scenario_Revenue"],
+            var_name="Scenario",
+            value_name="Total Revenue (€)"
+        )
+        st.bar_chart(
+            data=summary_melted.pivot(index="Country", columns="Scenario", values="Total Revenue (€)")
+        )
+
+        st.markdown("### 📈 Revenue Over Time by Country")
+        df_time = merged.groupby(["Year", "Month", "Country"])[
+            ["Baseline_Revenue", "Scenario_Revenue"]
+        ].sum().reset_index()
+
+        # Convert to datetime for x-axis
+        df_time["Date"] = pd.to_datetime(df_time["Year"].astype(str) + "-" + df_time["Month"].astype(str) + "-01")
+
+        # Filter impacted countries
+        impacted_countries = summary[summary["Impacted"]]["Country"].tolist()
+        countries_to_plot = st.multiselect(
+            "Select countries for time-based revenue view",
+            options=merged["Country"].unique().tolist(),
+            default=impacted_countries if impacted_countries else merged["Country"].unique().tolist()
+        )
+
+        for country in countries_to_plot:
+            df_country = df_time[df_time["Country"] == country].sort_values("Date")
+            st.line_chart(
+                df_country.set_index("Date")[["Baseline_Revenue", "Scenario_Revenue"]],
+                height=300
+            )
