@@ -6,20 +6,6 @@ from dummy_data import dummy_prices, dummy_volumes
 from simulator import run_irp_simulation_with_interventions
 
 st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
-
-# Sidebar: Admin features
-st.sidebar.header("📂 Upload Your Data")
-st.sidebar.file_uploader("Upload Price Data", type=["csv"], key="price_file")
-st.sidebar.file_uploader("Upload Volume Data", type=["csv"], key="volume_file")
-st.sidebar.file_uploader("Upload Exchange Rates", type=["csv"], key="fx_file")
-
-# Header
-st.title("🧠 HERCULES IRP Simulator")
-st.markdown("### 🤖 Talk to Your Pricing Analyst")
-st.button("Coming Soon", disabled=True)
-
-
-st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
 st.title("HERCULES IRP Simulator")
 
 all_countries = list(dummy_prices.keys())
