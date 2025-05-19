@@ -1,40 +1,43 @@
 
 import streamlit as st
 
-st.set_page_config(page_title="HERCULES IRP - Choose Mode", layout="centered")
+st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
 
-st.title("🔍 Choose Your Simulation Mode")
+# Sidebar (Admin functions)
+st.sidebar.header("📂 Upload Your Data")
+st.sidebar.markdown("Upload pricing, volume, and exchange rate files:")
 
-st.markdown("Welcome to **HERCULES IRP** – your tool for modeling international reference pricing strategies and risk.")
+st.sidebar.file_uploader("Upload Price Data", type=["csv"], key="price_file")
+st.sidebar.file_uploader("Upload Volume Data", type=["csv"], key="volume_file")
+st.sidebar.file_uploader("Upload Exchange Rates", type=["csv"], key="fx_file")
 
-st.markdown("## 🧰 Option A: Manual Simulation")
-st.markdown("""
-Use the interactive UI to:
-- Review and edit IRP rules
-- Set up baseline pricing and volumes
-- Define your intervention scenarios
-- View full charts and results
+# Header
+st.title("🧠 HERCULES IRP Simulator")
 
-➡️ To start, click **'Manual Simulation'** in the sidebar on the left.
-""")
+# Placeholder for AI assistant
+st.markdown("### 🤖 Talk to Your Pricing Analyst")
+st.button("Coming Soon", disabled=True)
 
+# Step 1: View & Edit IRP Rules
+with st.expander("📘 Step 1: View & Edit IRP Rules (Collapsed by Default)", expanded=False):
+    st.markdown("Editable country-specific IRP settings will go here.")
+
+# Step 2: Input Prices
+with st.expander("💶 Step 2: Input Prices", expanded=False):
+    st.markdown("Manual or uploaded price inputs will appear here.")
+
+# Step 3: Input Volumes
+with st.expander("📦 Step 3: Input Volumes", expanded=False):
+    st.markdown("Monthly or constant volume settings per country.")
+
+# Run baseline
 st.markdown("---")
+st.button("▶️ Run Baseline Simulation")
 
-st.markdown("## 🤖 Option B: Talk to Your Pricing Analyst")
-st.markdown("""
-Use natural language to interact with your IRP model:
-- "Drop Germany by 25% in 2028"
-- "Show me all countries impacted by a cut in Spain"
-- "Run a baseline for EU only"
-""")
-st.button("Enter AI Mode (Coming Soon)", disabled=True)
+# Step 4: Scenario Builder
+st.markdown("## 🔧 Step 4: Define Scenario")
+st.markdown("Intervention inputs will appear here.")
 
-st.markdown("---")
-
-# Upload
-st.markdown("## 📥 Optional: Upload Your Pricing & Volume Data")
-uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
-if uploaded_file:
-    df_uploaded = st.read_csv(uploaded_file)
-    st.success("File uploaded successfully.")
-    st.dataframe(df_uploaded.head())
+# Step 5: Results
+st.markdown("## 📊 Step 5: Results")
+st.markdown("Charts and detailed results table will be displayed here.")
