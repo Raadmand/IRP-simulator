@@ -17,7 +17,7 @@ Use the interactive UI to:
 - View full charts and results
 """)
 if st.button("Enter Manual Mode"):
-    st.switch_page("Manual Simulation")
+    st.markdown("[Enter Manual Mode](./Manual%20Simulation)", unsafe_allow_html=True)
 
 st.markdown("---")
 
