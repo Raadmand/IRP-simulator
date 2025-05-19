@@ -16,7 +16,7 @@ Use the interactive UI to:
 - View full charts and results
 """)
 if st.button("Enter Manual Mode"):
-    st.switch_page("pages/app_manual.py")
+    st.switch_page("app_manual")
 
 st.markdown("---")
 
