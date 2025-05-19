@@ -7,23 +7,24 @@ from simulator import run_irp_simulation_with_interventions
 
 st.set_page_config(page_title="HERCULES IRP Simulator", layout="wide")
 
-# Sidebar: Upload data
+# Sidebar: Admin features
 st.sidebar.header("📂 Upload Your Data")
 st.sidebar.file_uploader("Upload Price Data", type=["csv"], key="price_file")
 st.sidebar.file_uploader("Upload Volume Data", type=["csv"], key="volume_file")
 st.sidebar.file_uploader("Upload Exchange Rates", type=["csv"], key="fx_file")
 
-# Top: AI placeholder
+# Header
 st.title("🧠 HERCULES IRP Simulator")
 st.markdown("### 🤖 Talk to Your Pricing Analyst")
 st.button("Coming Soon", disabled=True)
 
-# Step 1: View & Edit IRP Rules
+# Setup
 all_countries = list(dummy_prices.keys())
 drug_name = st.text_input("Drug Name", "Aspirin")
 irp_inputs = {}
 
-with st.expander("📘 Step 1: View & Edit IRP Rules", expanded=False):
+# Step 1.1 IRP Rules
+with st.expander("📘 Step 1.1: View & Edit IRP Rules", expanded=False):
     for country in all_countries:
         st.markdown(f"**{country}**")
         col1, col2, col3 = st.columns(3)
@@ -50,22 +51,22 @@ with st.expander("📘 Step 1: View & Edit IRP Rules", expanded=False):
             "performs_irp": irp_policies[country].get("performs_irp", True)
         }
 
-# Step 2: Prices
+# Step 1.2 Prices
 initial_prices = {}
-with st.expander("💶 Step 2: Input Prices", expanded=False):
+with st.expander("💶 Step 1.2: Input Prices", expanded=False):
     for country in all_countries:
         initial_prices[country] = st.number_input(f"{country} price (€)", value=dummy_prices[country], key=f"price_{country}")
 initial_prices_wrapped = {drug_name: initial_prices}
 
-# Step 3: Volumes
+# Step 1.3 Volumes
 volumes = {}
-with st.expander("📦 Step 3: Input Volumes", expanded=False):
+with st.expander("📦 Step 1.3: Input Volumes", expanded=False):
     for country in all_countries:
         vol = st.number_input(f"{country} monthly volume", value=dummy_volumes[country][0], key=f"vol_{country}")
         volumes[country] = {m: vol for m in range(121)}
 volumes_wrapped = {drug_name: volumes}
 
-# Run baseline
+# Run Baseline
 if st.button("▶️ Run Baseline Simulation"):
     baseline_df = run_irp_simulation_with_interventions(
         initial_prices=initial_prices_wrapped,
@@ -80,10 +81,10 @@ if st.button("▶️ Run Baseline Simulation"):
     st.session_state["irp_inputs"] = irp_inputs
     st.success("Baseline simulation complete.")
 
-# Scenario Builder
+# Scenario
 if "baseline_df" in st.session_state:
     st.markdown("---")
-    st.markdown("## 🔧 Step 4: Define Scenario")
+    st.markdown("## 🔧 Step 2: Define Scenario")
 
     interventions = []
     num_events = st.number_input("Number of intervention events", min_value=1, max_value=10, value=1)
@@ -132,10 +133,10 @@ if "baseline_df" in st.session_state:
         st.session_state["results_df"] = merged
         st.success("Scenario simulation complete.")
 
-# Step 5: Results
+# Step 3: Results
 if "results_df" in st.session_state:
     st.markdown("---")
-    st.markdown("## 📊 Step 5: Results")
+    st.markdown("## 📊 Step 3: Results")
 
     merged = st.session_state["results_df"]
     summary = merged.groupby("Country")[["Revenue_Baseline", "Revenue_Scenario"]].sum().reset_index()
